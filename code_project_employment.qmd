@@ -93,6 +93,7 @@ ps.dta.gbm = ps(formula_ps,
                 verbose=FALSE) 
 
 dta$w <- get.weights(ps.dta.gbm, stop.method="es.mean")
+dta$ps <- ps.dta.gbm$ps$es.mean.ATE
 ```
 
 Table to see the balance before and after weight
@@ -128,10 +129,29 @@ plot(ps.dta.gbm, plots=3)
 plot(ps.dta.gbm, plots=4)
 plot(ps.dta.gbm, plots=5)
 
+# desnty plot PS
+dta %>% 
+ggplot(aes(x=ps, fill=factor(employed))) +
+  geom_density(alpha=0.7) +
+  scale_fill_discrete("employment status") +
+  xlab("Propensity score") +
+  theme_bw(  )
+
+
 # influence variable
 summary(ps.dta.gbm$gbm.obj,
         n.trees=ps.dta.gbm$desc$ks.max.ATE$n.trees,
         plot=TRUE)
+
+
+
+# desnty plot IPTW
+dta %>% 
+ggplot(mapping = aes(x = ps, fill = factor(employed), weight = w)) +
+    geom_density(alpha = 0.3) +
+    theme_bw() +
+    theme(legend.key = element_blank()) + 
+    labs(title = "IPTW")
 ```
 
 #### Regression models
