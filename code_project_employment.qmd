@@ -22,14 +22,12 @@ knitr::opts_chunk$set(echo=FALSE, warning = F, message = F)
 options(scipen = 999, digits=3)
 ```
 
-
-
 ```{r}
 # Data
 
-setwd("/home/leivaignacio")
+#setwd("/home/leivaignacio")
 
-dta <- readRDS('imput_data.Rds') |> select(sex, age, VL.dectable, employed = exposure, insurance, comorbidities, migrant, education.level,
+dta <- readRDS('data.Rds') |> select(sex, age, VL.dectable, employed = exposure, insurance, comorbidities, migrant, education.level,
                      timeOnART, stgo, housing, self.stigma, addiction, mental.health, adherent) #%>% 
   # mutate(sex = (as.numeric(sex) -1),
   #        employed = as.numeric(employed)-1,
@@ -38,7 +36,8 @@ dta <- readRDS('imput_data.Rds') |> select(sex, age, VL.dectable, employed = exp
   #        VL.dectable = factor(VL.dectable))
 
 ```
-### Pupulation 
+
+### Pupulation
 
 ```{r}
 
@@ -66,8 +65,6 @@ dta <- dta %>%
          VL.dectable = factor(VL.dectable))
 ```
 
-
-
 ```{r}
 # variables for propensity score
 variables <- names(dta)[!names(dta) %in% c("VL.dectable", "employed", 
@@ -75,8 +72,6 @@ variables <- names(dta)[!names(dta) %in% c("VL.dectable", "employed",
                                            )]
 formula_ps <- as.formula(paste0('employed ~', paste0(variables, collapse = '+')))
 ```
-
-
 
 #### Prepensity Score and weights
 

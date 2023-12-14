@@ -28,14 +28,13 @@ options(scipen = 999, digits=3)
 ```{r}
 # Data
 
-setwd("/home/leivaignacio")
+#setwd("/home/leivaignacio")
 
-dta <- readRDS('imput_data.Rds') |> select(sex, age, VL.dectable, employed = exposure, insurance, comorbidities, migrant, education.level, timeOnART, stgo, housing, self.stigma, addiction, mental.health, adherent)
+dta <- readRDS('data.Rds') |> select(sex, age, VL.dectable, employed = exposure, insurance, comorbidities, migrant, education.level, timeOnART, stgo, housing, self.stigma, addiction, mental.health, adherent)
 
 ```
 
-
-### Pupulation 
+### Pupulation
 
 ```{r}
 dta |> tbl_summary(by = 'VL.dectable') |> as_gt() |> 
@@ -61,14 +60,11 @@ dta <- dta %>%
          VL.dectable = factor(VL.dectable))
 ```
 
-
 ```{r}
 # variables for propensity score
 variables <- names(dta)[!names(dta) %in% c("VL.dectable", 'adherent')]
 formula_ps <- as.formula(paste0('adherent ~', paste0(variables, collapse = '+')))
 ```
-
-
 
 #### Prepensity Score and weights
 
