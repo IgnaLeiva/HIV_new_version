@@ -37,7 +37,7 @@ dta <- readRDS('data.Rds') |> select(sex, age, VL.dectable, employed = exposure,
 
 ```
 
-### Pupulation
+### Population
 
 ```{r}
 
