@@ -1,0 +1,264 @@
+---
+title: "Code project HIV - Adherence"
+format: html
+editor: visual
+---
+
+## Analysis data
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+library(twang)
+library(survey)
+library(Publish)
+library(tidyverse)
+library(gt)
+library(gtsummary)
+library(boot)
+
+knitr::opts_chunk$set(echo=FALSE, warning = F, message = F)
+options(scipen = 999, digits=3)
+
+
+```
+
+```{r}
+# Data
+
+setwd("/home/leivaignacio")
+
+dta <- readRDS('imput_data.Rds') |> select(sex, age, VL.dectable, employed = exposure, insurance, comorbidities, migrant, education.level, timeOnART, stgo, housing, self.stigma, addiction, mental.health, adherent)
+
+```
+
+
+### Pupulation 
+
+```{r}
+dta |> tbl_summary(by = 'VL.dectable') |> as_gt() |> 
+  tab_caption(caption = md("Table 1: Population divided by **VL status**")) |> 
+  tab_footnote(footnote = '0: Indetectable, 1: Detectable',placement = "left")
+
+
+dta |> tbl_summary(by = 'adherent') |> as_gt() |> 
+  tab_caption(caption = md("Table 1: Population divided by **adherence status**")) |> 
+  tab_footnote(footnote = '0: Non-Adherent, 1: Adherent',placement = "left")
+```
+
+### Employment status as outcome
+
+```{r}
+# prepare the data for the algorithm
+
+dta <- dta %>% 
+  mutate(sex = (as.numeric(sex) -1),
+         employed = as.numeric(employed)-1,
+         insurance = as.numeric(insurance)-1,
+         education.level = as.numeric(education.level)-1,
+         VL.dectable = factor(VL.dectable))
+```
+
+
+```{r}
+# variables for propensity score
+variables <- names(dta)[!names(dta) %in% c("VL.dectable", 'adherent')]
+formula_ps <- as.formula(paste0('adherent ~', paste0(variables, collapse = '+')))
+```
+
+
+
+#### Prepensity Score and weights
+
+Propensity score was calculate using `twang` package. The variables included were: `r variables`. ATE was the treatment effect selected
+
+```{r}
+set.seed(123)
+ps.dta.gbm = ps(formula_ps,
+                data = dta,
+                n.trees=10000,
+                interaction.depth=3,
+                shrinkage=0.01,
+                estimand = "ATE",
+                stop.method=c("es.mean","ks.max"),
+                n.minobsinnode = 10,
+                n.keep = 1,
+                n.grid = 25,
+                ks.exact = NULL,
+                verbose=FALSE) 
+
+dta$w <- get.weights(ps.dta.gbm, stop.method="es.mean")
+```
+
+Table to see the balance before and after weight
+
+```{r}
+# Standarised difference
+tbl <- bal.table(ps.dta.gbm)
+tbl$unw |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Unweighted population"))
+
+
+tbl <- bal.table(ps.dta.gbm)
+tbl$es.mean.ATE |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Weighted population using Absolute ES"))
+
+
+tbl <- bal.table(ps.dta.gbm)
+tbl$ks.max.ATE |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Weighted population KS values "))
+
+
+summary(ps.dta.gbm)
+
+```
+
+These are graph to check the PS performance
+
+```{r}
+
+plot(ps.dta.gbm)
+
+# Box plot
+# Overlap
+plot(ps.dta.gbm, plots=2)
+plot(ps.dta.gbm, plots=3)
+plot(ps.dta.gbm, plots=4)
+plot(ps.dta.gbm, plots=5)
+
+# influence variable
+summary(ps.dta.gbm$gbm.obj,
+        n.trees=ps.dta.gbm$desc$ks.max.ATE$n.trees,
+        plot=TRUE)
+```
+
+#### Regression models
+
+I used two functions for determining ATE. One was `svyglm` from the `survey` package which returned robust standard errors (SE). The other was the `glm` package which returned inadequate SE, but use bootstrapping to get the confidence intervals.
+
+Additionally, I calculated ATE using only weight and a double robust approach which consists in using the weights but also adjusting for the covariates (model specification). In that case, if one of the two methods is wrongly specify one still can get valid estimates
+
+```{r}
+# formula for regression
+outcome <- 'adherent'
+exposure <- 'employed'
+covariates <- c('sex', 'age', 'insurance', 'comorbidities', 'migrant',
+                'education.level', 'timeOnART', 'stgo', 'housing',
+                'self.stigma', 'addiction', 'mental.health', 'adherent')
+formula.only.weight <- as.formula(paste0(outcome, '~', exposure))
+formula.dre <- as.formula(paste0(outcome, '~', exposure, '+', paste(covariates, collapse = '+')))
+
+
+## Convert data to factor
+
+categorical <- c('VL.dectable',"sex","employed","insurance","comorbidities","migrant","education.level", "timeOnART","stgo", "housing","self.stigma","addiction","mental.health", 'adherent')
+
+for(i in 1:ncol(dta)){
+  for(j in 1:length(categorical))
+  if(names(dta)[i] == categorical[j]){
+    dta[,i] <- factor(dta[,i])
+  }
+}
+```
+
+##### Robust standard errors
+
+```{r}
+dta.survey <- svydesign(ids=~1, # 1 indicating no cluster
+                          weights=~w, 
+                          data=dta) 
+```
+
+1.  Using only the weights
+
+```{r}
+w.model.survey <- svyglm(formula.only.weight, 
+                  # family = stats::quasibinomial(), #stats::binomial()
+                  family = stats::binomial(), #stats::binomial()
+                  design=dta.survey)
+
+broom::tidy(w.model.survey, conf.int = T, exponentiate = TRUE) |> gt()
+
+```
+
+2.  Double robust estimates (DRE)
+
+```{r}
+w.model.drm <- svyglm(formula.dre, 
+                    design=dta.survey,
+                    family = stats::binomial())
+broom::tidy(w.model.drm, conf.int = T, exponentiate = TRUE) |> gt()
+```
+
+##### Logistic regression and bootstrapping
+
+1.  Uisng only weights
+
+```{r}
+
+model.1 <- glm(formula.only.weight, 
+               data=dta,
+               weights = w,
+               family = "binomial")
+
+
+# Formula for the boots
+
+myfuction.1 <- function(data, idx, formula)
+{
+  df <- data[idx, ]
+  coef(glm(formula.only.weight,
+      data=df,
+      weights = w,
+      family = "binomial"))[2]
+}
+
+
+set.seed(123)
+
+bootstrap.1 <- boot(dta, myfuction.1, R = 5000)
+
+#boot.ci(bootstrap,conf = 0.95, type = "all")
+
+low.conf <- exp(model.1$coefficients[2]   -1.96*sd(bootstrap.1[["t"]]))
+high.conf <- exp(model.1$coefficients[2]     +1.96*sd(bootstrap.1[["t"]]))
+
+print(paste('Employment: ', round(exp(model.1$coefficients[2]),3)))
+print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
+
+```
+
+2.  Double robust estimates (DRE)
+
+```{r}
+
+model.2 <- glm(formula.dre, 
+               data=dta,
+               weights = w,
+               family = "binomial")
+
+
+# Formula for the boots
+
+myfuction.2 <- function(data, idx, formula)
+{
+  df <- data[idx, ]
+  coef(glm(formula.dre,
+      data=df,
+      weights = w,
+      family = "binomial"))[2]
+}
+
+
+set.seed(123)
+
+bootstrap.2 <- boot(dta, myfuction.2, R = 5000)
+
+#boot.ci(bootstrap,conf = 0.95, type = "all")
+
+low.conf <- exp(model.2$coefficients[2]   -1.96*sd(bootstrap.2[["t"]]))
+high.conf <- exp(model.2$coefficients[2]     +1.96*sd(bootstrap.2[["t"]]))
+
+print(paste('Employment: ', round(exp(model.2$coefficients[2]),3)))
+print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
+
+```
