@@ -74,7 +74,7 @@ Propensity score was calculate using `twang` package. The variables included wer
 set.seed(123)
 ps.dta.gbm = ps(formula_ps,
                 data = dta,
-                n.trees=10000,
+                n.trees=50000,
                 interaction.depth=3,
                 shrinkage=0.01,
                 estimand = "ATE",
@@ -84,8 +84,16 @@ ps.dta.gbm = ps(formula_ps,
                 n.grid = 25,
                 ks.exact = NULL,
                 verbose=FALSE) 
-
+dta$ps <- ps.dta.gbm$ps$es.mean.ATE
 dta$w <- get.weights(ps.dta.gbm, stop.method="es.mean")
+
+
+# ps can be obatain using glm or prop.table
+x <- glm(adherent ~ 1, family = 'binomial', data = dta)
+p <- predict(x, type = "response", newdata = dta) %>% unique() 
+#z <- prop.table(table(dta$employed))
+
+dta$sw <- ifelse(dta$adherent == 1, p/dta$ps, (1-p)/(1-dta$ps))
 ```
 
 Table to see the balance before and after weight
@@ -139,7 +147,7 @@ outcome <- 'adherent'
 exposure <- 'employed'
 covariates <- c('sex', 'age', 'insurance', 'comorbidities', 'migrant',
                 'education.level', 'timeOnART', 'stgo', 'housing',
-                'self.stigma', 'addiction', 'mental.health', 'adherent')
+                'self.stigma', 'addiction', 'mental.health')
 formula.only.weight <- as.formula(paste0(outcome, '~', exposure))
 formula.dre <- as.formula(paste0(outcome, '~', exposure, '+', paste(covariates, collapse = '+')))
 
@@ -160,7 +168,7 @@ for(i in 1:ncol(dta)){
 
 ```{r}
 dta.survey <- svydesign(ids=~1, # 1 indicating no cluster
-                          weights=~w, 
+                          weights=~sw, 
                           data=dta) 
 ```
 
@@ -193,7 +201,7 @@ broom::tidy(w.model.drm, conf.int = T, exponentiate = TRUE) |> gt()
 
 model.1 <- glm(formula.only.weight, 
                data=dta,
-               weights = w,
+               weights = sw,
                family = "binomial")
 
 
@@ -204,7 +212,7 @@ myfuction.1 <- function(data, idx, formula)
   df <- data[idx, ]
   coef(glm(formula.only.weight,
       data=df,
-      weights = w,
+      weights = sw,
       family = "binomial"))[2]
 }
 
@@ -229,7 +237,7 @@ print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
 
 model.2 <- glm(formula.dre, 
                data=dta,
-               weights = w,
+               weights = sw,
                family = "binomial")
 
 
@@ -240,7 +248,7 @@ myfuction.2 <- function(data, idx, formula)
   df <- data[idx, ]
   coef(glm(formula.dre,
       data=df,
-      weights = w,
+      weights = sw,
       family = "binomial"))[2]
 }
 
