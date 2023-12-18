@@ -124,6 +124,7 @@ tbl$unw |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Unweighted popu
 
 tbl$es.mean.ATE |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Weighted population using Absolute ES"))
 
+
 tbl$ks.max.ATE |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Weighted population KS values "))
 
 
@@ -172,7 +173,7 @@ summary(ps.dta.gbm$gbm.obj,
 
 # desnty plot IPTW
 dta %>% 
-ggplot(mapping = aes(x = ps, fill = factor(employed), weight = w)) +
+ggplot(mapping = aes(x = ps, fill = factor(employed), weight = sw)) +
     geom_density(alpha = 0.3) +
     theme_bw() +
     theme(legend.key = element_blank()) + 
@@ -312,4 +313,42 @@ high.conf <- exp(model.2$coefficients[2]     +1.96*sd(bootstrap.2[["t"]]))
 print(paste('Employment: ', round(exp(model.2$coefficients[2]),3)))
 print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
 
+```
+
+# Table 1 \| Baseline characteristics of weighted cohort
+
+```{r}
+library(tableone)
+
+# variables_tbl <-   c('Women', 'Age in years (mean (SD))', 'HIV viral load ≥ 50 copies/mL', 'employed',
+#     'Health insurance strata C/D', 'Additional long-term conditions', 'Migrant status',
+#     'Educational level', '≥ 1-year on ART', 'Living in the same region as the health center', 'Living in s/he own or rented house', 'At least one question related to self-stigma','At least one question related to addiction (alcohol/drugs)',
+#     'At least one question related to mental health', 'Adherent')
+# 
+# 
+# # names
+# names(dta.survey$variables) <- variables_tbl
+
+
+tabweighted<- svyCreateTableOne(c("VL.dectable", "adherent", variables),
+                                
+                                strata="employed", data=dta.survey, test=FALSE)
+
+#show table with SMD and pairwise SMD
+tblone <- print(tabweighted, smd=TRUE)
+tbl <- as.data.frame(tblone)  |> gt(rownames_to_stub = T) |> 
+  text_case_match(
+    "sex =" ~ "Woman",
+    "Europe" ~ "Europa"
+  ) |> 
+  tab_caption(caption = md("Baseline characteristics of weighted cohort")) 
+
+
+
+tbl |>  gtsave("tab_1.docx")
+
+
+ExtractSmd(tabweighted)
+
+variables
 ```
