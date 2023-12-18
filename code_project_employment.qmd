@@ -124,6 +124,7 @@ tbl$unw |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Unweighted popu
 
 tbl$es.mean.ATE |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Weighted population using Absolute ES"))
 
+
 tbl$ks.max.ATE |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Weighted population KS values "))
 
 
@@ -172,7 +173,7 @@ summary(ps.dta.gbm$gbm.obj,
 
 # desnty plot IPTW
 dta %>% 
-ggplot(mapping = aes(x = ps, fill = factor(employed), weight = w)) +
+ggplot(mapping = aes(x = ps, fill = factor(employed), weight = sw)) +
     geom_density(alpha = 0.3) +
     theme_bw() +
     theme(legend.key = element_blank()) + 
@@ -312,4 +313,21 @@ high.conf <- exp(model.2$coefficients[2]     +1.96*sd(bootstrap.2[["t"]]))
 print(paste('Employment: ', round(exp(model.2$coefficients[2]),3)))
 print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
 
+```
+
+
+# Table 1 | Baseline characteristics of weighted cohort
+
+```{r}
+library(tableone)
+tabweighted<- svyCreateTableOne(vars=c("VL.dectable", "adherent", variables), strata="employed", data=dta.survey, test=FALSE)
+
+#show table with SMD and pairwise SMD
+tblone <- print(tabweighted, smd=TRUE)
+as.data.frame(tblone)  |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Baseline characteristics of weighted cohort"))
+
+
+ExtractSmd(tabweighted)
+
+variables
 ```
