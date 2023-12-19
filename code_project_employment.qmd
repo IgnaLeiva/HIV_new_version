@@ -326,6 +326,7 @@ tabweighted<- svyCreateTableOne(vars=c("VL.dectable", "adherent", variables), st
 tblone <- print(tabweighted, smd=TRUE)
 as.data.frame(tblone)  |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Baseline characteristics of weighted cohort"))
 
+tbl |>  gtsave("tab_1.docx")
 
 ExtractSmd(tabweighted)
 
