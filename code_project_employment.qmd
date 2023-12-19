@@ -315,6 +315,7 @@ print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
 
 ```
 
+<<<<<<< HEAD
 # Table 1 \| Baseline characteristics of weighted cohort
 
 ```{r}
@@ -348,6 +349,21 @@ tbl <- as.data.frame(tblone)  |> gt(rownames_to_stub = T) |>
 tbl |>  gtsave("tab_1.docx")
 
 
+=======
+
+# Table 1 | Baseline characteristics of weighted cohort
+
+```{r}
+library(tableone)
+tabweighted<- svyCreateTableOne(vars=c("VL.dectable", "adherent", variables), strata="employed", data=dta.survey, test=FALSE)
+
+#show table with SMD and pairwise SMD
+tblone <- print(tabweighted, smd=TRUE)
+as.data.frame(tblone)  |> gt(rownames_to_stub = T) |> tab_caption(caption = md("Baseline characteristics of weighted cohort"))
+
+tbl |>  gtsave("tab_1.docx")
+
+>>>>>>> 93fa6d4bfdc515cd0fc31bd87e6b48c50f5764f8
 ExtractSmd(tabweighted)
 
 variables
