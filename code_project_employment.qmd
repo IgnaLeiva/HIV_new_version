@@ -363,7 +363,7 @@ as.data.frame(tblone)  |> gt(rownames_to_stub = T) |> tab_caption(caption = md("
 
 tbl |>  gtsave("tab_1.docx")
 
->>>>>>> 93fa6d4bfdc515cd0fc31bd87e6b48c50f5764f8
+
 ExtractSmd(tabweighted)
 
 variables
