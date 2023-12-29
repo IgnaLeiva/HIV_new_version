@@ -33,7 +33,7 @@ dta <- readRDS('data.Rds') |> select(sex, age, VL.dectable, employed = exposure,
   #        employed = as.numeric(employed)-1,
   #        insurance = as.numeric(insurance)-1,
   #        education.level = as.numeric(education.level)-1,
-  #        VL.dectable = factor(VL.dectable))
+  #        VL.dectable = factor(VL.dectable)),
 
 ```
 
@@ -48,7 +48,14 @@ dta |> tbl_summary(by = 'VL.dectable') |> as_gt() |>
 
 dta |> tbl_summary(by = 'employed') |> as_gt() |> 
   tab_caption(caption = md("Table 1: Population divided by **employment status**")) |> 
-  tab_footnote(footnote = '0: Unemployed, 1: Employed',placement = "left")
+  tab_footnote(footnote = '0: Unemployed, 1: Employed',placement = "left") |> 
+  gtsave("tab_1.rtf")
+
+dta %>% group_by(employed) %>% 
+  summarise(mean = mean(age),
+            sd = sd(age),
+            median = median(age))
+
 
 ```
 
@@ -67,8 +74,8 @@ dta <- dta %>%
 
 ```{r}
 # variables for propensity score
-variables <- names(dta)[!names(dta) %in% c("VL.dectable", "employed", 
-                                           'adherent'# see what happens exlcuding adherence
+variables <- names(dta)[!names(dta) %in% c("VL.dectable", "employed"#, 
+                                          # 'adherent'# see what happens exlcuding adherence
                                            )]
 formula_ps <- as.formula(paste0('employed ~', paste0(variables, collapse = '+')))
 ```
@@ -192,8 +199,7 @@ outcome <- 'VL.dectable'
 exposure <- 'employed'
 covariates <- c('sex', 'age', 'insurance', 'comorbidities', 'migrant',
                 'education.level', 'timeOnART', 'stgo', 'housing',
-                'self.stigma', 'addiction', 'mental.health'
-                #, 'adherent'
+                'self.stigma', 'addiction', 'mental.health'#, 'adherent'
                 )
 formula.only.weight <- as.formula(paste0(outcome, '~', exposure))
 formula.dre <- as.formula(paste0(outcome, '~', exposure, '+', paste(covariates, collapse = '+')))
@@ -315,8 +321,7 @@ print(paste('95% CI: ', round(low.conf,3), ' - ', round(high.conf, 3)))
 
 ```
 
-<<<<<<< HEAD
-# Table 1 \| Baseline characteristics of weighted cohort
+Table 1 \| Baseline characteristics of weighted cohort
 
 ```{r}
 library(tableone)
@@ -338,20 +343,42 @@ tabweighted<- svyCreateTableOne(c("VL.dectable", "adherent", variables),
 #show table with SMD and pairwise SMD
 tblone <- print(tabweighted, smd=TRUE)
 tbl <- as.data.frame(tblone)  |> gt(rownames_to_stub = T) |> 
-  text_case_match(
-    "sex =" ~ "Woman",
-    "Europe" ~ "Europa"
-  ) |> 
+  # text_case_match(
+  #   "sex =" ~ "Woman",
+  #   "Europe" ~ "Europa"
+  # ) |> 
   tab_caption(caption = md("Baseline characteristics of weighted cohort")) 
 
 
+#####
+nhanesSvy <- svydesign(
+  ids = ~1, strata = ~employed, weights = ~sw,
+  nest = TRUE, data = dta
+)
+
+# this for showing all levels 
+library("jstable")   
+
+variables_table <- names(dta)[!names(dta) %in% c("employed", "ps","w","sw" )]
+variables_table.fac <- variables_table[!variables_table %in% "age"]
+                                           
+                                        
+svyCreateTableOne2(
+  vars = variables_table,
+  strata = "employed", data = nhanesSvy,
+  smd = T,
+  factorVars = variables_table.fac) |>  
+  as.data.frame() |> 
+  gt(rownames_to_stub = T) |>  
+  gtsave("tab_1.docx")
+
+
 
 tbl |>  gtsave("tab_1.docx")
+tbl
 
 
-
-tbl |>  gtsave("tab_1.docx")
-
+#tbl |>  gtsave("tab_1.docx")
 
 ExtractSmd(tabweighted)
 
